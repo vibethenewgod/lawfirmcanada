@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --primary: 210 100% 16%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 0 79% 43%;
+    --secondary-foreground: 0 0% 100%;
+    --accent: 210 100% 12%;
+    --accent-foreground: 0 0% 100%;
+  }
+
+  body {
+    @apply font-poppins text-base antialiased;
+  }
+}
+
+@layer utilities {
+  .font-poppins {
+    font-family: "Poppins", sans-serif;
+  }
+}
+
