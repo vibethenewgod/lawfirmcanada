@@ -7,41 +7,64 @@ export default function HeroSection() {
   const [currentVideo, setCurrentVideo] = useState(0)
   const [isPaused, setIsPaused] = useState(false)
   const [videoLoadErrors, setVideoLoadErrors] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
   const isMobile = useMediaQuery("(max-width: 768px)")
 
-  // Your Cloudinary video URLs
-  const videos = [
-    "https://res.cloudinary.com/dhgjuexer/video/upload/v1743067036/video1_debxth.mp4",
-    "https://res.cloudinary.com/dhgjuexer/video/upload/v1742981388/uhul1rkevhwxcl4vrltq.mp4",
-    "https://res.cloudinary.com/dhgjuexer/video/upload/v1742981441/thkhilf34gmup5muzkcm.mp4",
-  ]
+  // Back to three videos with direct paths to public folder
+  const videos = ["/video1.mp4", "/video2.mp4", "/video3.mp4"]
 
   const videoRefs = useRef([])
 
   useEffect(() => {
+    console.log("Initializing videos...")
+
     // Initialize video refs
     videoRefs.current = videoRefs.current.slice(0, videos.length)
 
-    // Play the first video
-    if (videoRefs.current[0] && !isPaused) {
-      videoRefs.current[0].play().catch((err) => {
-        console.log("Playback error:", err)
-        setVideoLoadErrors((prev) => [...prev, 0])
-      })
-    }
-
-    // Set up event listeners for video ending
+    // Set up event listeners for video ending and errors
     videoRefs.current.forEach((video, index) => {
       if (video) {
-        video.addEventListener("ended", () => handleVideoEnd(index))
+        console.log(`Setting up listeners for video ${index}`)
+
+        video.addEventListener("ended", () => {
+          console.log(`Video ${index} ended`)
+          handleVideoEnd(index)
+        })
 
         // Add error handling for each video
-        video.addEventListener("error", () => {
-          console.log(`Error loading video ${index}`)
+        video.addEventListener("error", (e) => {
+          console.error(`Error loading video ${index}:`, e)
           setVideoLoadErrors((prev) => [...prev, index])
+        })
+
+        // Add loaded data listener
+        video.addEventListener("loadeddata", () => {
+          console.log(`Video ${index} loaded data`)
+          setIsLoading(false)
         })
       }
     })
+
+    // Try to play the first video
+    if (videoRefs.current[0]) {
+      console.log("Attempting to play first video...")
+      setIsLoading(true)
+
+      // Use a timeout to ensure the video element is fully initialized
+      setTimeout(() => {
+        videoRefs.current[0]
+          .play()
+          .then(() => {
+            console.log("First video playing successfully")
+            setIsLoading(false)
+          })
+          .catch((err) => {
+            console.error("Error playing first video:", err)
+            setVideoLoadErrors((prev) => [...prev, 0])
+            setIsLoading(false)
+          })
+      }, 100)
+    }
 
     return () => {
       // Clean up event listeners
@@ -49,13 +72,16 @@ export default function HeroSection() {
         if (video) {
           video.removeEventListener("ended", () => handleVideoEnd(index))
           video.removeEventListener("error", () => {})
+          video.removeEventListener("loadeddata", () => {})
         }
       })
     }
-  }, [isPaused])
+  }, [])
 
   const handleVideoEnd = (index) => {
     if (isPaused) return
+
+    console.log(`Handling end of video ${index}`)
 
     // Hide current video and reset
     if (videoRefs.current[index]) {
@@ -69,22 +95,34 @@ export default function HeroSection() {
       nextIndex = (nextIndex + 1) % videos.length
     }
 
+    console.log(`Switching to video ${nextIndex}`)
     setCurrentVideo(nextIndex)
+    setIsLoading(true)
 
     // Play next video
     if (videoRefs.current[nextIndex] && !videoLoadErrors.includes(nextIndex)) {
-      videoRefs.current[nextIndex].play().catch((err) => {
-        console.log("Playback error:", err)
-        setVideoLoadErrors((prev) => [...prev, nextIndex])
-      })
+      console.log(`Attempting to play video ${nextIndex}`)
+      videoRefs.current[nextIndex]
+        .play()
+        .then(() => {
+          console.log(`Video ${nextIndex} playing successfully`)
+          setIsLoading(false)
+        })
+        .catch((err) => {
+          console.error(`Error playing video ${nextIndex}:`, err)
+          setVideoLoadErrors((prev) => [...prev, nextIndex])
+          setIsLoading(false)
+        })
     }
   }
 
   const togglePause = () => {
     setIsPaused(!isPaused)
     if (isPaused) {
-      videoRefs.current[currentVideo]?.play().catch((err) => console.log("Playback error:", err))
+      console.log(`Resuming video ${currentVideo}`)
+      videoRefs.current[currentVideo]?.play().catch((err) => console.error("Error resuming video:", err))
     } else {
+      console.log(`Pausing video ${currentVideo}`)
       videoRefs.current[currentVideo]?.pause()
     }
   }
@@ -96,7 +134,7 @@ export default function HeroSection() {
     <section className="relative w-full">
       {/* Responsive height - taller on desktop, shorter on mobile like Blakes.com */}
       <div className={`${isMobile ? "h-[70vh]" : "h-screen"} relative`}>
-        <div className="absolute inset-0 z-0 overflow-hidden">
+        <div className="absolute inset-0 z-0 overflow-hidden bg-[#012b51]">
           {videos.map((src, index) => (
             <video
               key={index}
@@ -104,14 +142,28 @@ export default function HeroSection() {
               muted
               playsInline
               preload="auto"
-              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${index === currentVideo ? "opacity-100" : "opacity-0"} ${isMobile ? "object-[center_top]" : "object-center"}`}
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${
+                index === currentVideo ? "opacity-100" : "opacity-0"
+              } ${isMobile ? "object-[center_top]" : "object-center"}`}
             >
               <source src={src} type="video/mp4" />
+              Your browser does not support the video tag.
             </video>
           ))}
 
+          {/* Loading indicator */}
+          {isLoading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/30 z-10">
+              <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          )}
+
           {/* Fallback background if all videos fail to load */}
-          {videoLoadErrors.length === videos.length && <div className="absolute inset-0 bg-[#012b51]"></div>}
+          {videoLoadErrors.length === videos.length && (
+            <div className="absolute inset-0 bg-[#012b51] flex items-center justify-center">
+              <p className="text-white text-lg">Unable to load videos</p>
+            </div>
+          )}
 
           {/* Complex gradient overlay */}
           <div
@@ -160,7 +212,9 @@ export default function HeroSection() {
                 return (
                   <button
                     key={index}
-                    className={`w-2 h-2 rounded-full transition-all duration-300 ${originalIndex === currentVideo ? "bg-white w-6" : "bg-white/50"}`}
+                    className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                      originalIndex === currentVideo ? "bg-white w-6" : "bg-white/50"
+                    }`}
                     onClick={() => {
                       if (videoRefs.current[currentVideo]) {
                         videoRefs.current[currentVideo].pause()
@@ -168,7 +222,9 @@ export default function HeroSection() {
                       }
                       setCurrentVideo(originalIndex)
                       if (videoRefs.current[originalIndex] && !isPaused) {
-                        videoRefs.current[originalIndex].play().catch((err) => console.log("Playback error:", err))
+                        videoRefs.current[originalIndex]
+                          .play()
+                          .catch((err) => console.error("Error playing video on click:", err))
                       }
                     }}
                   />
